@@ -1,124 +1,169 @@
+# welcome/welcome.py
 import nonebot
-from nonebot import on_notice
-from nonebot.adapters.onebot.v11 import Bot, GroupIncreaseNoticeEvent, MessageSegment
-from pathlib import Path
+from nonebot import on_notice, on_command
+from nonebot.adapters.onebot.v11 import Bot, GroupIncreaseNoticeEvent, GroupMessageEvent
+from nonebot.adapters.onebot.v11.event import Event
+from typing import Optional, Dict, Any
+import traceback
 import asyncio
-import tempfile
-import aiohttp
+
+from ..utils.image_sender import ImageSender
+from ..utils.typst_compiler import TypstCompiler
 from ..config_manager import config_manager, Feature
-import base64
+from .config import WelcomeConfig
+from .template_manager import TemplateManager
 
-welcome = on_notice()
+class WelcomeError(Exception):
+    """欢迎功能相关错误的基类"""
+    pass
 
-# 获取当前脚本文件所在目录
-current_dir = Path(__file__).parent
+class TemplateError(WelcomeError):
+    """模板相关错误"""
+    pass
 
-DEFAULT_TEMPLATE_PATH = current_dir / "welcome.typ"
-GROUP_TEMPLATES = {
-    793548390: current_dir / "welcome_main.typ",  # 主群的模板
-    725048672: current_dir / "welcome_main.typ",
-}
-
-GROUP_TEMPLATE_URLS = {
-    793548390: "https://gist.githubusercontent.com/ParaN3xus/b0b6988a823e13b24a8398acccf034cc/raw/welcome.typ",
-    725048672: "https://gist.githubusercontent.com/ParaN3xus/b0b6988a823e13b24a8398acccf034cc/raw/welcome.typ",
-    # 其他群的URL配置
-}
-
-async def fetch_template(url: str) -> str:
-    """从网络获取模板内容"""
-    async with aiohttp.ClientSession() as session:
+class WelcomeManager:
+    def __init__(self):
         try:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    return await response.text()
-                else:
-                    raise RuntimeError(f"Failed to fetch template: HTTP {response.status}")
+            self.config = WelcomeConfig()
         except Exception as e:
-            raise RuntimeError(f"Failed to fetch template: {str(e)}")
+            nonebot.logger.error(f"初始化 WelcomeManager 失败: {e}")
+            raise WelcomeError(f"初始化失败: {e}")
+
+    async def _get_group_info(self, bot: Bot, group_id: int) -> Dict[str, Any]:
+        """获取群组信息"""
+        try:
+            return await bot.get_group_info(group_id=group_id)
+        except Exception as e:
+            nonebot.logger.error(f"获取群组信息失败 (群号: {group_id}): {e}")
+            raise WelcomeError(f"获取群组信息失败: {e}")
+
+    async def _get_member_info(self, bot: Bot, group_id: int, user_id: int) -> Dict[str, Any]:
+        """获取成员信息"""
+        try:
+            return await bot.get_group_member_info(group_id=group_id, user_id=user_id)
+        except Exception as e:
+            nonebot.logger.error(f"获取成员信息失败 (群号: {group_id}, 用户: {user_id}): {e}")
+            raise WelcomeError(f"获取成员信息失败: {e}")
+
+    async def _get_template(self, group_id: int) -> str:
+        """获取欢迎模板"""
+        try:
+            template_path = self.config.group_templates.get(
+                group_id, 
+                self.config.default_template_path
+            )
+            template_url = self.config.group_template_urls.get(group_id)
+            
+            return await TemplateManager.get_template_content(template_path, template_url)
+        except Exception as e:
+            nonebot.logger.error(f"获取模板失败 (群号: {group_id}): {e}")
+            raise TemplateError(f"获取模板失败: {e}")
+
+    def _format_template(self, template: str, group_name: str, nickname: str) -> str:
+        """格式化模板内容"""
+        try:
+            return template.replace(
+                '{group_name}', group_name
+            ).replace(
+                '{name}', nickname
+            )
+        except Exception as e:
+            nonebot.logger.error(f"格式化模板失败: {e}")
+            raise TemplateError(f"格式化模板失败: {e}")
+
+    async def generate_welcome_message(self, bot: Bot, group_id: int, user_id: int) -> str:
+        """
+        生成欢迎消息
         
-async def get_template_content(group_id: int) -> str:
-    """
-    按优先级获取模板内容
-    优先级：GROUP_TEMPLATE_URLS > GROUP_TEMPLATES > DEFAULT_TEMPLATE_PATH
-    """
-    # 1. 尝试从URL获取
-    if group_id in GROUP_TEMPLATE_URLS:
+        Args:
+            bot: Bot 实例
+            group_id: 群号
+            user_id: 用户 ID
+            
+        Returns:
+            str: base64 编码的图片数据
+            
+        Raises:
+            WelcomeError: 生成欢迎消息时的错误
+        """
         try:
-            template_content = await fetch_template(GROUP_TEMPLATE_URLS[group_id])
-            nonebot.logger.info(f"Successfully fetched template from URL for group {group_id}")
-            return template_content
+            # 获取群组和成员信息
+            group_info = await self._get_group_info(bot, group_id)
+            member_info = await self._get_member_info(bot, group_id, user_id)
+            
+            # 获取并处理模板
+            template_content = await self._get_template(group_id)
+            welcome_text = self._format_template(
+                template_content,
+                group_info['group_name'],
+                member_info.get('nickname', str(user_id))
+            )
+            
+            # 编译生成图片
+            return await TypstCompiler.compile_document(welcome_text)
+            
         except Exception as e:
-            nonebot.logger.warning(f"Failed to fetch template from URL for group {group_id}: {e}, falling back to local template")
-            # URL获取失败，继续尝试本地模板
+            nonebot.logger.error(f"生成欢迎消息失败:\n{traceback.format_exc()}")
+            raise WelcomeError(f"生成欢迎消息失败: {e}")
+
+class WelcomeHandler:
+    """处理欢迎消息的类"""
     
-    # 2. 尝试从本地群特定模板获取
-    if group_id in GROUP_TEMPLATES:
-        template_path = GROUP_TEMPLATES[group_id]
-        if template_path.exists():
-            nonebot.logger.info(f"Using local group template for group {group_id}")
-            return template_path.read_text(encoding='utf-8')
-        else:
-            nonebot.logger.warning(f"Local template not found for group {group_id}: {template_path}, falling back to default template")
+    def __init__(self):
+        self.manager = WelcomeManager()
     
-    # 3. 使用默认模板
-    if DEFAULT_TEMPLATE_PATH.exists():
-        nonebot.logger.info(f"Using default template for group {group_id}")
-        return DEFAULT_TEMPLATE_PATH.read_text(encoding='utf-8')
-    else:
-        raise FileNotFoundError("Default template not found")
+    async def handle_welcome(self, bot: Bot, event: Event, user_id: int) -> None:
+        """处理欢迎消息请求"""
+        group_id = getattr(event, 'group_id', None)
+        if not group_id:
+            return
+            
+        try:
+            # 记录欢迎消息请求
+            nonebot.logger.info(
+                f"处理欢迎消息:\n"
+                f"群号: {group_id}\n"
+                f"目标用户: {user_id}"
+            )
+            
+            # 生成并发送欢迎消息
+            image_base64 = await self.manager.generate_welcome_message(bot, group_id, user_id)
+            await ImageSender.send_base64_image(
+                bot, 
+                event, 
+                image_base64, 
+                error_msg="发送欢迎消息失败"
+            )
+            
+        except WelcomeError as e:
+            error_msg = f"欢迎消息生成失败: {str(e)}"
+            nonebot.logger.error(error_msg)
+            await bot.send(event, error_msg)
+        except asyncio.TimeoutError:
+            await bot.send(event, "生成欢迎消息超时，请稍后重试。")
+        except Exception as e:
+            error_msg = f"发生未知错误: {str(e)}"
+            nonebot.logger.exception(f"欢迎消息处理失败: {e}")
+            await bot.send(event, f"{error_msg}\n请联系管理员检查日志。")
 
-
-async def compile_typst(input_file: Path, output_file: Path) -> None:        
-    process = await asyncio.create_subprocess_shell(
-        f'typst compile "{input_file}" "{output_file}" --format png --ppi 300',
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-    stdout, stderr = await process.communicate()
-    if process.returncode != 0:
-        error_msg = stderr.decode().strip()
-        raise RuntimeError(f"Typst compilation failed:\n{error_msg}")
-    return stdout.decode().strip()
-
-async def send_image(bot: Bot, event: GroupIncreaseNoticeEvent, image_path: Path) -> None:
-    with open(image_path, "rb") as image_file:
-        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
-    await bot.send(event, MessageSegment.image(f"base64://{encoded_string}"))
+# 创建全局处理器实例
+welcome_handler = WelcomeHandler()
+welcome = on_notice()
+welcome_cmd = on_command("welcome")
 
 @welcome.handle()
 async def handle_group_increase(bot: Bot, event: GroupIncreaseNoticeEvent):
-    group_id = event.group_id
-    if not config_manager.is_feature_enabled(group_id, Feature.WELCOME):
+    """处理新成员入群事件"""
+    if not config_manager.is_feature_enabled(event.group_id, Feature.WELCOME):
+        return
+    await welcome_handler.handle_welcome(bot, event, event.user_id)
+
+@welcome_cmd.handle()
+async def handle_welcome_command(bot: Bot, event: GroupMessageEvent):
+    """处理欢迎命令"""
+    if not config_manager.is_feature_enabled(event.group_id, Feature.WELCOME):
+        await welcome_cmd.finish("该群未启用欢迎功能")
         return
 
-    user_id = event.user_id
-    
-    # 获取群信息和成员昵称
-    group_info = await bot.get_group_info(group_id=group_id)
-    group_name = group_info['group_name']
-    
-    member_info = await bot.get_group_member_info(group_id=group_id, user_id=user_id)
-    nickname = member_info.get('nickname')
-    
-    try:
-        # 按优先级获取模板内容
-        template_content = await get_template_content(group_id)
-        welcome_text = template_content.replace('{group_name}', group_name).replace('{name}', nickname)
-        
-        with tempfile.TemporaryDirectory() as tmpdir:
-            input_file = Path(tmpdir) / "welcome.typ"
-            output_file = Path(tmpdir) / "welcome.png"
-
-            input_file.write_text(welcome_text, encoding='utf-8')
-
-            try:
-                await asyncio.wait_for(compile_typst(input_file, output_file), timeout=30)
-                if not output_file.exists():
-                    raise FileNotFoundError(f"Output file not found: {output_file}")
-                await send_image(bot, event, output_file)
-            except Exception as e:
-                await bot.send(event, f"生成欢迎消息时发生错误: {str(e)}")
-                
-    except Exception as e:
-        await bot.send(event, f"获取欢迎模板时发生错误: {str(e)}")
+    target_user_id = event.reply.sender.user_id if event.reply else event.user_id
+    await welcome_handler.handle_welcome(bot, event, target_user_id)

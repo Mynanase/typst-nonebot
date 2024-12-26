@@ -20,7 +20,7 @@
 
 #let time-strs = "{datetime_now}"
 #let datetime_now = parse-datetime(time-strs)
-#let date = datetime_now.display("[month padding:space]月[day padding:space]日 [hour]:[minute]")
+#let date = datetime_now.display("[month padding:space]月[day padding:space]日  [hour]:[minute]")
 
 #oc.chat(
   oc.datetime(date),

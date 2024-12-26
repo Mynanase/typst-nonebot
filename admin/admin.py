@@ -13,7 +13,7 @@ async def handle_disable(bot: Bot, event: GroupMessageEvent):
     cmd_parts = msg.split(maxsplit=1)
 
     if len(cmd_parts) != 2:
-        await bot.send(event, "用法: /disable {feature}\n可用功能: welcome, render")
+        await bot.send(event, "用法: /disable {feature}\n可用功能:/disable welcome, render, yaubot")
         return
 
     feature_name = cmd_parts[1].lower()
@@ -31,7 +31,7 @@ async def handle_enable(bot: Bot, event: GroupMessageEvent):
     cmd_parts = msg.split(maxsplit=1)
 
     if len(cmd_parts) != 2:
-        await bot.send(event, "用法: /enable {feature}\n可用功能: welcome, render, yaubot")
+        await bot.send(event, "用法: /enable {feature}\n可用功能:/enable welcome, render, yaubot")
         return
 
     feature_name = cmd_parts[1].lower()
