@@ -7,6 +7,7 @@ import asyncio
 import tempfile
 import base64
 import opencc
+from datetime import datetime
 from ..config_manager import config_manager, Feature
 
 renderer = on_message(priority=5)
@@ -69,7 +70,8 @@ async def handle_typst(bot: Bot, event: MessageEvent, state: T_State):
     elif msg.startswith("typc "):
         wrapped_code = template_content.format(script=script)
     elif msg.startswith("yau "):  # 新增 yau 命令处理
-        wrapped_code = template_content.format(text=text)
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        wrapped_code = template_content.format(text=text, datetime_now = now)
     else:
         return
 
