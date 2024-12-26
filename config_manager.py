@@ -8,6 +8,7 @@ from dataclasses import dataclass
 class Feature(Enum):
     WELCOME = "welcome"
     RENDER = "render"
+    YAUBOT = "yaubot"
 
 @dataclass
 class GroupConfig:

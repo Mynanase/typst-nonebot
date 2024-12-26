@@ -4,6 +4,7 @@ from nonebot.plugin import PluginMetadata
 # 导入子插件的功能
 from .welcome import welcome
 from .render import renderer
+from .yaubot import yaubot
 from .admin import disable_feature, enable_feature
 
 __plugin_meta__ = PluginMetadata(
@@ -34,7 +35,7 @@ __plugin_meta__ = PluginMetadata(
 # 导出所有需要的变量
 __all__ = [
     'welcome',
-    'typst_renderer',
+    'renderer',
     'disable_feature',
     'enable_feature',
     'config_manager',  # 如果需要在其他地方使用

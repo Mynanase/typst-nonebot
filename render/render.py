@@ -6,12 +6,9 @@ from pathlib import Path
 import asyncio
 import tempfile
 import base64
-import opencc
-from datetime import datetime
 from ..config_manager import config_manager, Feature
 
 renderer = on_message(priority=5)
-converter = opencc.OpenCC('s2hk') # 简体中文转香港繁体中文
 
 async def compile_typst(input_file: Path, output_file: Path) -> None:
     process = await asyncio.create_subprocess_shell(
@@ -50,10 +47,6 @@ async def handle_typst(bot: Bot, event: MessageEvent, state: T_State):
     elif msg.startswith("typc "):
         script = msg[5:].strip()
         template_file = current_dir / "typc.typ"
-    elif msg.startswith("yau "):
-        text = msg[4:].strip()
-        text = converter.convert(text)
-        template_file = current_dir / "yau.typ"
     else:
         return  # 非相关命令，忽略
 
@@ -69,9 +62,6 @@ async def handle_typst(bot: Bot, event: MessageEvent, state: T_State):
         wrapped_code = template_content.format(equation=equation)
     elif msg.startswith("typc "):
         wrapped_code = template_content.format(script=script)
-    elif msg.startswith("yau "):  # 新增 yau 命令处理
-        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        wrapped_code = template_content.format(text=text, datetime_now = now)
     else:
         return
 
