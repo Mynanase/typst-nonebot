@@ -1,0 +1,48 @@
+{
+  "daily_summary": {
+    "enabled": true,
+    "model": {
+      "provider": "openai",
+      "model_name": "deepseek-reasoner",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_key": "sk-47dd804d39ca439aac598b18de888169",
+      "temperature": 0.7,
+      "max_tokens": 2000
+    },
+    "schedule_time": "8:00",
+    "template": {
+      "presets": ["简洁版", "技术详细版", "社区互动版"],
+      "current": "技术详细版"
+    },
+    "storage_path": "data/daily_summary/messages.db",
+    "backup_interval": "24h"
+  },
+  "render": {
+    "enabled": true,
+    "template_dir": "data/render/templates",
+    "templates": {
+      "typ": "typ.typ",
+      "teq": "teq.typ",
+      "typc": "typc.typ"
+    },
+    "timeout": 30,
+    "ppi": 300
+  },
+  "welcome": {
+    "enabled": true,
+    "template_dir": "data/welcome/templates",
+    "default_template": "default",
+    "group_templates": {},
+    "template_urls": {},
+    "timeout": 30,
+    "ppi": 300
+  },
+  "yau": {
+    "enabled": true,
+    "template_dir": "data/yaubot/templates",
+    "template_name": "yau",
+    "timeout": 30,
+    "ppi": 300,
+    "opencc_config": "s2hk"
+  }
+}

@@ -1,0 +1,34 @@
+# {{ date }} 技术社区日报 - 社区互动版
+
+## 👥 今日社区数据
+活跃成员：{{ active_users }}
+消息总量：{{ total_messages }}
+互动最多话题数：{{ topics|length }}
+
+## 🌟 精彩讨论
+{% for discussion in top_discussions %}
+### {{ loop.index }}. {{ discussion.title }}
+参与者：{{ discussion.participants|join(", ") }}
+热度：{{ "🔥" * discussion.heat }}
+
+{{ discussion.summary }}
+
+{% if discussion.highlights %}
+精彩观点：
+{% for point in discussion.highlights %}
+> {{ point.content }} —— {{ point.author }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+## 💡 创新想法墙
+{% for idea in innovative_ideas %}
+- {{ idea.author }}: {{ idea.content }}
+{% endfor %}
+
+## 👏 今日贡献者
+{% for contributor in top_contributors %}
+- {{ contributor.name }}: {{ contributor.contribution }}
+{% endfor %}
+
+🤖 由 {{ bot_name }} 用 ❤️ 生成

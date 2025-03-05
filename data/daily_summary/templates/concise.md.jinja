@@ -1,0 +1,18 @@
+# {{ date }} 技术社区日报 - 简洁版
+
+## 今日概览
+活跃用户数：{{ active_users }}
+消息总数：{{ total_messages }}
+
+## 🎯 热点话题
+{% for topic in topics %}
+{{ loop.index }}. {{ topic.name }} (热度: {{ "★" * topic.heat }})
+   - {{ topic.summary }}
+{% endfor %}
+
+## ⚠️ 待解决问题
+{% for issue in issues %}
+- {{ issue.title }} (由 {{ issue.raised_by }} 提出)
+{% endfor %}
+
+🤖 由 {{ bot_name }} 生成

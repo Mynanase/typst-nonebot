@@ -1,0 +1,43 @@
+# {{ date }} 技术社区日报 - 技术详细版
+
+## 📊 数据统计
+- 活跃讨论者：{{ active_users }}人
+- 技术话题数：{{ topics|length }}个
+- 代码分享数：{{ code_snippets|length }}段
+- 总消息量：{{ total_messages }}条
+
+## 🎯 技术话题榜
+{% for topic in topics %}
+### {{ loop.index }}. {{ topic.name }} (热度: {{ "★" * topic.heat }})
+{{ topic.summary }}
+{% if topic.key_points %}
+关键点：
+{% for point in topic.key_points %}
+- {{ point }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+
+## 💻 代码分析
+{% for snippet in code_snippets %}
+### 代码片段 {{ loop.index }}
+```{{ snippet.language }}
+{{ snippet.code }}
+```
+**分析**: {{ snippet.analysis }}
+{% endfor %}
+
+## ⚠️ 技术难题追踪
+{% for issue in issues %}
+### {{ issue.title }}
+- 提出者：{{ issue.raised_by }}
+- 状态：{{ issue.status }}
+- 描述：{{ issue.description }}
+{% endfor %}
+
+## 📚 学习资源
+{% for resource in resources %}
+- [{{ resource.title }}]({{ resource.url }}) - {{ resource.description }}
+{% endfor %}
+
+🤖 由 {{ bot_name }} 基于 {{ total_messages }} 条消息生成
